@@ -185,6 +185,65 @@ export default function HRHiresChart({ data }: { data: HRMonthData[] }) {
           </div>
         ))}
       </div>
+
+      {/* Monthly breakdown table */}
+      <div style={{ overflowX:'auto', borderRadius:10, border:'1px solid #e2e8f0' }}>
+        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+          <thead>
+            <tr style={{ background:'#f8fafc' }}>
+              <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:700, color:'#374151', borderBottom:'1px solid #e2e8f0', whiteSpace:'nowrap' }}>
+                HR Rep
+              </th>
+              {data.map(m => (
+                <th key={m.month} style={{ padding:'8px 10px', textAlign:'center', fontWeight:600, color:'#64748b', borderBottom:'1px solid #e2e8f0', whiteSpace:'nowrap' }}>
+                  {m.month.replace(' 2026','').replace(' 2025','')}
+                </th>
+              ))}
+              <th style={{ padding:'8px 12px', textAlign:'center', fontWeight:700, color:'#0f172a', borderBottom:'1px solid #e2e8f0', background:'#f1f5f9' }}>
+                Total
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {hrs.map((hr, i) => (
+              <tr key={hr} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                <td style={{ padding:'7px 12px', borderBottom:'1px solid #f1f5f9' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                    <div style={{ width:8, height:8, borderRadius:2, background:getColor(hr).bar, flexShrink:0 }} />
+                    <span style={{ fontWeight:600, color:'#374151' }}>{hr}</span>
+                  </div>
+                </td>
+                {data.map(m => {
+                  const n = m.hires[hr] ?? 0;
+                  return (
+                    <td key={m.month} style={{ padding:'7px 10px', textAlign:'center', borderBottom:'1px solid #f1f5f9' }}>
+                      {n > 0
+                        ? <span style={{ fontWeight:600, color:getColor(hr).bar }}>{n}</span>
+                        : <span style={{ color:'#cbd5e1' }}>—</span>
+                      }
+                    </td>
+                  );
+                })}
+                <td style={{ padding:'7px 12px', textAlign:'center', fontWeight:800, color:getColor(hr).bar, borderBottom:'1px solid #f1f5f9', background:'#f8fafc' }}>
+                  {hrTotals[hr]}
+                </td>
+              </tr>
+            ))}
+            {/* Total row */}
+            <tr style={{ background:'#f1f5f9' }}>
+              <td style={{ padding:'8px 12px', fontWeight:700, color:'#0f172a' }}>Total</td>
+              {data.map(m => (
+                <td key={m.month} style={{ padding:'8px 10px', textAlign:'center', fontWeight:700, color:'#0f172a' }}>
+                  {m.total}
+                </td>
+              ))}
+              <td style={{ padding:'8px 12px', textAlign:'center', fontWeight:800, color:'#0f172a', fontSize:12 }}>
+                {grandTotal}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
