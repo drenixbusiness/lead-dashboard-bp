@@ -18,10 +18,13 @@ import HiresBySourceChart from './HiresBySourceChart';
 import HireRateBySourceChart from './HireRateBySourceChart';
 import MonthOverMonthCard from './MonthOverMonthCard';
 import ForecastCard from './ForecastCard';
-import WorkforceMovementChart from './WorkforceMovementChart';
-import TenureDistributionChart from './TenureDistributionChart';
 import HRHiresChart from './HRHiresChart';
+import DriversTenureChart from './DriversTenureChart';
+import DriversMovementChart from './DriversMovementChart';
+import DriversStatusChart from './DriversStatusChart';
+import DriversRosterTable from './DriversRosterTable';
 import type { HRMonthData } from '../../types/hr';
+import type { DriversDataResult } from '../../types/drivers';
 
 // ── Card style ────────────────────────────────────────────────────────────────
 const CARD: React.CSSProperties = {
@@ -37,7 +40,7 @@ const CARD: React.CSSProperties = {
 };
 
 // ── Sidebar sections ──────────────────────────────────────────────────────────
-type SectionId = 'overview' | 'forecast' | 'performance' | 'hire-rates' | 'cost-spend' | 'sources' | 'workforce';
+type SectionId = 'overview' | 'forecast' | 'performance' | 'hire-rates' | 'cost-spend' | 'sources' | 'workforce' | 'drivers';
 
 const SECTIONS: { id: SectionId; label: string; icon: string; desc: string }[] = [
   { id: 'overview',    label: 'Overview',        icon: '▣', desc: 'KPIs & monthly summary'      },
@@ -47,6 +50,7 @@ const SECTIONS: { id: SectionId; label: string; icon: string; desc: string }[] =
   { id: 'cost-spend',  label: 'Cost & Spend',     icon: '◆', desc: 'Ad spend & cost per hire'   },
   { id: 'sources',     label: 'Source Analysis',  icon: '◐', desc: 'Hires & rate by channel'    },
   { id: 'workforce',   label: 'Workforce / HR',   icon: '◈', desc: 'Headcount, movement & tenure'},
+  { id: 'drivers',     label: 'Drivers',          icon: '●', desc: 'Retention, start & leave'   },
 ];
 
 // ── Animated number ───────────────────────────────────────────────────────────
@@ -171,7 +175,14 @@ function KPIRow({ cards }: { cards: KPICardProps[] }) {
 }
 
 // ── Section content ───────────────────────────────────────────────────────────
-function SectionContent({ id, data, hrData }: { id: SectionId; data: LeadsDataRow[]; hrData: HRMonthData[] }) {
+function SectionContent({
+  id, data, hrData, driversData,
+}: {
+  id: SectionId;
+  data: LeadsDataRow[];
+  hrData: HRMonthData[];
+  driversData: DriversDataResult;
+}) {
   const grid2: React.CSSProperties = { display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 };
 
   // Shared aggregates used across sections
@@ -314,25 +325,66 @@ function SectionContent({ id, data, hrData }: { id: SectionId; data: LeadsDataRo
       const topHR     = Object.entries(hrTotals).sort((a, b) => b[1] - a[1])[0];
       const numMonths = hrData.length;
       const avgPerMonth = numMonths > 0 ? totalHiredHR / numMonths : 0;
+      const monthRange = hrData.length > 0
+        ? `${hrData[0].month.replace(/ 20\d{2}$/, '')} – ${hrData[hrData.length - 1].month.replace(/ 20\d{2}$/, '')} 2026 · all reps`
+        : 'all reps';
 
       return (
         <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
           <KPIRow cards={[
-            { label:'Total Hires (HR)',  value:totalHiredHR,  sub:'Jan – Jun 2026 · all reps',    gradient:'linear-gradient(135deg,#1e40af,#3b82f6)', icon:'✅' },
+            { label:'Total Hires (HR)',  value:totalHiredHR,  sub:monthRange,    gradient:'linear-gradient(135deg,#1e40af,#3b82f6)', icon:'✅' },
             { label:'Top HR Rep',        value:topHR?.[1] ?? 0, sub:topHR?.[0] ?? '—',            gradient:'linear-gradient(135deg,#065f46,#059669)', icon:'🏆' },
             { label:'Avg Hires / Month', value:avgPerMonth,   decimals:1, sub:'company average',  gradient:'linear-gradient(135deg,#5b21b6,#7c3aed)', icon:'📅' },
             { label:'HR Reps Active',    value:Object.keys(hrTotals).length, sub:'across all months', gradient:'linear-gradient(135deg,#92400e,#f59e0b)', icon:'👥' },
           ]} />
-          <div style={{ ...CARD, height:480, animation:'fadeSlideIn 0.4s ease both' }}>
+          <div style={{ ...CARD, animation:'fadeSlideIn 0.4s ease both' }}>
             <HRHiresChart data={hrData} />
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
             <div style={{ ...CARD, height:380, animation:'fadeSlideIn 0.4s ease 0.1s both' }}>
-              <WorkforceMovementChart />
+              <DriversMovementChart summary={driversData.summary} source={driversData.source} />
             </div>
             <div style={{ ...CARD, height:380, animation:'fadeSlideIn 0.4s ease 0.2s both' }}>
-              <TenureDistributionChart />
+              <DriversTenureChart summary={driversData.summary} source={driversData.source} />
             </div>
+          </div>
+        </div>
+      );
+    }
+
+    case 'drivers': {
+      const { drivers, summary, source, error: driversError } = driversData;
+      const retentionPct = summary.total > 0 ? (summary.active / summary.total) * 100 : 0;
+
+      return (
+        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+          {driversError && (
+            <div style={{
+              background:'#fff7ed', border:'1px solid #fed7aa', borderRadius:10,
+              padding:'10px 14px', fontSize:12, color:'#9a3412', lineHeight:1.5,
+            }}>
+              Live sheet not loaded yet ({driversError}). Showing sample retention data — share the Google Sheet as <strong>Anyone with the link can view</strong> to switch to live drivers.
+            </div>
+          )}
+          <KPIRow cards={[
+            { label:'Total Drivers', value:summary.total, sub:source === 'live' ? 'from retention sheet' : 'sample roster', gradient:'linear-gradient(135deg,#1e40af,#3b82f6)', icon:'👥' },
+            { label:'Active Now', value:summary.active, sub:`${retentionPct.toFixed(0)}% still with us`, gradient:'linear-gradient(135deg,#065f46,#059669)', icon:'✅' },
+            { label:'Avg Tenure', value:summary.avgWeeks, decimals:1, suffix:' wks', sub:`median ${summary.medianWeeks} wks`, gradient:'linear-gradient(135deg,#5b21b6,#7c3aed)', icon:'⏱' },
+            { label:'Left / Churned', value:summary.left, sub:'no longer active', gradient:'linear-gradient(135deg,#7f1d1d,#dc2626)', icon:'🚪' },
+          ]} />
+          <div style={{ display:'grid', gridTemplateColumns:'1.2fr 1fr', gap:16 }}>
+            <div style={{ ...CARD, height:380, animation:'fadeSlideIn 0.4s ease both' }}>
+              <DriversTenureChart summary={summary} source={source} />
+            </div>
+            <div style={{ ...CARD, height:380, animation:'fadeSlideIn 0.4s ease 0.1s both' }}>
+              <DriversStatusChart summary={summary} />
+            </div>
+          </div>
+          <div style={{ ...CARD, height:380, animation:'fadeSlideIn 0.4s ease 0.15s both' }}>
+            <DriversMovementChart summary={summary} source={source} />
+          </div>
+          <div style={{ ...CARD, animation:'fadeSlideIn 0.4s ease 0.2s both' }}>
+            <DriversRosterTable drivers={drivers} source={source} />
           </div>
         </div>
       );
@@ -341,9 +393,26 @@ function SectionContent({ id, data, hrData }: { id: SectionId; data: LeadsDataRo
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-interface Props { data: LeadsDataRow[]; error?: string; company?: string; hrData?: HRMonthData[]; }
+interface Props {
+  data: LeadsDataRow[];
+  error?: string;
+  company?: string;
+  hrData?: HRMonthData[];
+  driversData?: DriversDataResult;
+}
 
-export default function DashboardContent({ data, error, company = 'JM', hrData = [] }: Props) {
+const EMPTY_DRIVERS: DriversDataResult = {
+  drivers: [],
+  summary: {
+    total: 0, active: 0, left: 0, avgWeeks: 0, medianWeeks: 0,
+    buckets: [], movement: [],
+  },
+  source: 'sample',
+};
+
+export default function DashboardContent({
+  data, error, company = 'JM', hrData = [], driversData = EMPTY_DRIVERS,
+}: Props) {
   const [mounted, setMounted]        = useState(false);
   const [active, setActive]          = useState<SectionId>('overview');
   const [sidebarOpen, setSidebar]    = useState(true);
@@ -694,7 +763,7 @@ export default function DashboardContent({ data, error, company = 'JM', hrData =
                     <p>{activeSection.desc}{range ? ` · ${range}` : ''}</p>
                   </div>
                 </div>
-                <SectionContent id={active} data={data} hrData={hrData} />
+                <SectionContent id={active} data={data} hrData={hrData} driversData={driversData} />
               </>
             )}
           </main>
