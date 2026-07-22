@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "lead-dashboard-bp",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3020,
+      "autoPort": false,
+      "env": { "PORT": "3020" }
+    }
+  ]
+}

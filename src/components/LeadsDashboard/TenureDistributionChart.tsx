@@ -74,16 +74,24 @@ export default function TenureDistributionChart() {
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Tenure Distribution</div>
           <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-            how long drivers stay active · Static data
+            how long drivers stay active
           </div>
         </div>
-        <div style={{
-          fontSize: 11, fontWeight: 600,
-          background: '#eef2ff', color: '#4338ca',
-          border: '1px solid #c7d2fe',
-          borderRadius: 20, padding: '3px 10px',
-        }}>
-          {TOTAL} total tracked
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+            background: '#fff7ed', color: '#c2410c',
+            border: '1px solid #fed7aa',
+            borderRadius: 20, padding: '3px 10px',
+          }}>⚠ SAMPLE DATA</div>
+          <div style={{
+            fontSize: 11, fontWeight: 600,
+            background: '#eef2ff', color: '#4338ca',
+            border: '1px solid #c7d2fe',
+            borderRadius: 20, padding: '3px 10px',
+          }}>
+            {TOTAL} total tracked
+          </div>
         </div>
       </div>
 

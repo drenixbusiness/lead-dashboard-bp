@@ -119,17 +119,25 @@ export default function WorkforceMovementChart() {
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Workforce Movement</div>
           <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-            onboarding vs departures vs net headcount · Static data
+            onboarding vs departures vs net headcount
           </div>
         </div>
-        <div style={{
-          fontSize: 11, fontWeight: 600,
-          background: netChange >= 0 ? '#f0fdf4' : '#fef2f2',
-          color: netChange >= 0 ? '#15803d' : '#dc2626',
-          border: `1px solid ${netChange >= 0 ? '#bbf7d0' : '#fecaca'}`,
-          borderRadius: 20, padding: '3px 10px',
-        }}>
-          {netChange >= 0 ? '▲' : '▼'} Net {Math.abs(netChange)} drivers Jan→Jun
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+            background: '#fff7ed', color: '#c2410c',
+            border: '1px solid #fed7aa',
+            borderRadius: 20, padding: '3px 10px',
+          }}>⚠ SAMPLE DATA</div>
+          <div style={{
+            fontSize: 11, fontWeight: 600,
+            background: netChange >= 0 ? '#f0fdf4' : '#fef2f2',
+            color: netChange >= 0 ? '#15803d' : '#dc2626',
+            border: `1px solid ${netChange >= 0 ? '#bbf7d0' : '#fecaca'}`,
+            borderRadius: 20, padding: '3px 10px',
+          }}>
+            {netChange >= 0 ? '▲' : '▼'} Net {Math.abs(netChange)} drivers Jan→Jun
+          </div>
         </div>
       </div>
 
