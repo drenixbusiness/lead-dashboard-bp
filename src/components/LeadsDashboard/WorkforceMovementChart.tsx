@@ -74,7 +74,15 @@ function buildMovement(drivers: DriverRecord[]) {
   });
 }
 
-export default function WorkforceMovementChart({ drivers }: { drivers: DriverRecord[] }) {
+export default function WorkforceMovementChart({
+  drivers,
+  title = 'Workforce Movement',
+  subtitle = 'onboarding vs departures vs net headcount',
+}: {
+  drivers: DriverRecord[];
+  title?: string;
+  subtitle?: string;
+}) {
   const data = buildMovement(drivers);
 
   if (data.length === 0) {
@@ -168,9 +176,9 @@ export default function WorkforceMovementChart({ drivers }: { drivers: DriverRec
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Workforce Movement</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{title}</div>
           <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-            onboarding vs departures vs net headcount
+            {subtitle}
           </div>
         </div>
         <div style={{

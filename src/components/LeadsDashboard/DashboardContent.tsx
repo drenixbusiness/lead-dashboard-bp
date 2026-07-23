@@ -22,6 +22,7 @@ import WorkforceMovementChart from './WorkforceMovementChart';
 import TenureDistributionChart from './TenureDistributionChart';
 import HRHiresChart from './HRHiresChart';
 import DriverRosterSection from './DriverRosterSection';
+import HRMovementSection from './HRMovementSection';
 import type { HRMonthData } from '../../types/hr';
 import type { DriverRecord } from '../../types/roster';
 
@@ -39,16 +40,17 @@ const CARD: React.CSSProperties = {
 };
 
 // ── Sidebar sections ──────────────────────────────────────────────────────────
-type SectionId = 'overview' | 'forecast' | 'performance' | 'hire-rates' | 'cost-spend' | 'sources' | 'workforce';
+type SectionId = 'overview' | 'forecast' | 'performance' | 'hire-rates' | 'cost-spend' | 'sources' | 'workforce' | 'hr-movement';
 
 const SECTIONS: { id: SectionId; label: string; icon: string; desc: string }[] = [
-  { id: 'overview',    label: 'Overview',        icon: '▣', desc: 'KPIs & monthly summary'      },
-  { id: 'forecast',    label: 'Forecast',         icon: '◎', desc: '3-month projection'          },
-  { id: 'performance', label: 'Lead Performance', icon: '▲', desc: 'Leads & hire rate trends'    },
-  { id: 'hire-rates',  label: 'Hire Rates',       icon: '◉', desc: 'Rate by stream & source'    },
-  { id: 'cost-spend',  label: 'Cost & Spend',     icon: '◆', desc: 'Ad spend & cost per hire'   },
-  { id: 'sources',     label: 'Source Analysis',  icon: '◐', desc: 'Hires & rate by channel'    },
-  { id: 'workforce',   label: 'Workforce / HR',   icon: '◈', desc: 'Headcount, movement & tenure'},
+  { id: 'overview',     label: 'Overview',        icon: '▣', desc: 'KPIs & monthly summary'      },
+  { id: 'forecast',     label: 'Forecast',         icon: '◎', desc: '3-month projection'          },
+  { id: 'performance',  label: 'Lead Performance', icon: '▲', desc: 'Leads & hire rate trends'    },
+  { id: 'hire-rates',   label: 'Hire Rates',       icon: '◉', desc: 'Rate by stream & source'    },
+  { id: 'cost-spend',   label: 'Cost & Spend',     icon: '◆', desc: 'Ad spend & cost per hire'   },
+  { id: 'sources',      label: 'Source Analysis',  icon: '◐', desc: 'Hires & rate by channel'    },
+  { id: 'workforce',    label: 'Workforce / HR',   icon: '◈', desc: 'Headcount, movement & tenure'},
+  { id: 'hr-movement',  label: 'HR Movement',      icon: '▦', desc: 'Joined / left per HR rep'   },
 ];
 
 // ── Animated number ───────────────────────────────────────────────────────────
@@ -344,6 +346,13 @@ function SectionContent({ id, data, hrData, rosterData, showHRTabs }: { id: Sect
         </div>
       );
     }
+
+    case 'hr-movement':
+      return (
+        <div style={{ animation: 'fadeSlideIn 0.4s ease both' }}>
+          <HRMovementSection drivers={rosterData} />
+        </div>
+      );
   }
 }
 
