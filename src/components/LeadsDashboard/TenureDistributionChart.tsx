@@ -10,6 +10,7 @@ import {
   Legend,
 } from 'chart.js';
 import type { TooltipItem } from 'chart.js';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { Bar } from 'react-chartjs-2';
 import type { DriverRecord } from '../../types/roster';
 import { calcDriverTenureWeeks } from '../../utils/tenure';
@@ -65,6 +66,7 @@ export default function TenureDistributionChart({
   const options = {
     responsive: true,
     maintainAspectRatio: false,
+    layout: { padding: { top: 16 } },
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -74,6 +76,18 @@ export default function TenureDistributionChart({
             return ` ${n} drivers (${((n / total) * 100).toFixed(0)}%)`;
           },
         },
+      },
+      datalabels: {
+        display: (ctx: { dataset: { data: unknown[] }; dataIndex: number }) => {
+          const v = ctx.dataset.data[ctx.dataIndex];
+          return typeof v === 'number' && v > 0;
+        },
+        formatter: (value: number) => String(value),
+        color: '#312e81',
+        font: { size: 11, weight: 'bold' as const },
+        anchor: 'end' as const,
+        align: 'top' as const,
+        offset: 2,
       },
     },
     scales: {
@@ -125,7 +139,7 @@ export default function TenureDistributionChart({
       </div>
 
       <div style={{ flex: 1, minHeight: 0 }}>
-        <Bar data={chartData} options={options} />
+        <Bar data={chartData} options={options as never} plugins={[ChartDataLabels] as never} />
       </div>
 
       {dominant && (

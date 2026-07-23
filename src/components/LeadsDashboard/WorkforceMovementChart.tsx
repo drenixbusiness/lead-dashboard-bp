@@ -13,6 +13,8 @@ import {
   Legend,
 } from 'chart.js';
 import type { TooltipItem } from 'chart.js';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
+import type { Context } from 'chartjs-plugin-datalabels';
 import { Chart } from 'react-chartjs-2';
 import type { DriverRecord } from '../../types/roster';
 
@@ -137,6 +139,7 @@ export default function WorkforceMovementChart({
   const options = {
     responsive: true,
     maintainAspectRatio: false,
+    layout: { padding: { top: 18, bottom: 8 } },
     interaction: { mode: 'index' as const, intersect: false },
     plugins: {
       legend: { display: false },
@@ -148,6 +151,38 @@ export default function WorkforceMovementChart({
             return ` ${ctx.dataset.label}: ${v}`;
           },
         },
+      },
+      datalabels: {
+        display: (ctx: Context) => {
+          const v = ctx.dataset.data[ctx.dataIndex];
+          const n = typeof v === 'number' ? v : 0;
+          return n !== 0;
+        },
+        formatter: (value: number, ctx: Context) => {
+          const label = ctx.dataset.label ?? '';
+          if (label === 'Departed') return String(Math.abs(value));
+          return String(value);
+        },
+        color: (ctx: Context) => {
+          const label = ctx.dataset.label ?? '';
+          if (label === 'Active Headcount') return '#1d4ed8';
+          if (label === 'Departed') return '#991b1b';
+          return '#14532d';
+        },
+        font: { size: 10, weight: 'bold' as const },
+        anchor: (ctx: Context) => {
+          const label = ctx.dataset.label ?? '';
+          if (label === 'Departed') return 'start' as const;
+          return 'end' as const;
+        },
+        align: (ctx: Context) => {
+          const label = ctx.dataset.label ?? '';
+          if (label === 'Active Headcount') return 'top' as const;
+          if (label === 'Departed') return 'bottom' as const;
+          return 'top' as const;
+        },
+        offset: 2,
+        clamp: true,
       },
     },
     scales: {
@@ -206,7 +241,7 @@ export default function WorkforceMovementChart({
       </div>
 
       <div style={{ flex: 1, minHeight: 0 }}>
-        <Chart type="bar" data={chartData} options={options} />
+        <Chart type="bar" data={chartData} options={options as never} plugins={[ChartDataLabels] as never} />
       </div>
     </div>
   );
