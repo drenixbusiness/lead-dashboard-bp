@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { DriverRecord } from '../../types/roster';
+import { calcTenureWeeks } from '../../utils/tenure';
 
 const HR_COLORS: Record<string, string> = {
   ALEX:    '#22c55e',
@@ -23,15 +24,6 @@ function fmt(d: string | null) {
   try {
     return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   } catch { return d; }
-}
-
-function calcWeeks(start: string | null, end: string | null): number | null {
-  if (!start) return null;
-  try {
-    const s = new Date(start + 'T00:00:00').getTime();
-    const e = end ? new Date(end + 'T00:00:00').getTime() : Date.now();
-    return Math.floor((e - s) / (7 * 24 * 60 * 60 * 1000));
-  } catch { return null; }
 }
 
 function WeeksBadge({ weeks, active }: { weeks: number | null; active: boolean }) {
@@ -106,7 +98,7 @@ function DriverTable({ rows, type }: { rows: DriverRecord[]; type: 'hired' | 'te
         </thead>
         <tbody>
           {rows.map((r, i) => {
-            const weeks = calcWeeks(r.hiredDate, isTerminated ? r.terminationDate : null);
+            const weeks = calcTenureWeeks(r.hiredDate, isTerminated ? r.terminationDate : null);
             return (
               <tr key={i} style={{ borderBottom: '1px solid #f8fafc', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                 <td style={{ padding: '8px 12px', color: '#cbd5e1', fontSize: 11 }}>{i + 1}</td>

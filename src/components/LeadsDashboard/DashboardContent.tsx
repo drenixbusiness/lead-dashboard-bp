@@ -335,10 +335,10 @@ function SectionContent({ id, data, hrData, rosterData, showHRTabs }: { id: Sect
           )}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
             <div style={{ ...CARD, height:380, animation:'fadeSlideIn 0.4s ease 0.2s both' }}>
-              <WorkforceMovementChart />
+              <WorkforceMovementChart drivers={rosterData} />
             </div>
             <div style={{ ...CARD, height:380, animation:'fadeSlideIn 0.4s ease 0.3s both' }}>
-              <TenureDistributionChart />
+              <TenureDistributionChart drivers={rosterData} />
             </div>
           </div>
         </div>

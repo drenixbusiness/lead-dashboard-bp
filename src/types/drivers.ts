@@ -37,5 +37,5 @@ export interface DriversDataResult {
   drivers: DriverRow[];
   summary: DriversSummary;
   error?: string;
-  source: 'live' | 'sample';
+  source: 'live';
 }
