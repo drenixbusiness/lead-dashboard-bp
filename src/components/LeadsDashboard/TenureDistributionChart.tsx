@@ -24,7 +24,15 @@ const BUCKET_DEFS = [
   { label: '25+ wks',   min: 25, max: null as number | null, color: 'rgba(49,46,129,0.95)' },
 ];
 
-export default function TenureDistributionChart({ drivers }: { drivers: DriverRecord[] }) {
+export default function TenureDistributionChart({
+  drivers,
+  title = 'Tenure Distribution',
+  subtitle = 'weeks since hire · active → today · left → termination date',
+}: {
+  drivers: DriverRecord[];
+  title?: string;
+  subtitle?: string;
+}) {
   const weeks = drivers
     .map(d => calcDriverTenureWeeks(d))
     .filter((w): w is number => w !== null);
@@ -87,9 +95,9 @@ export default function TenureDistributionChart({ drivers }: { drivers: DriverRe
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Tenure Distribution</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{title}</div>
           <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-            weeks since hire · active → today · left → termination date
+            {subtitle}
           </div>
         </div>
         <div style={{

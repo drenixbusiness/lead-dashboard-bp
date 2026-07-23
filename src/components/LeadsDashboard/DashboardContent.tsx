@@ -23,6 +23,7 @@ import TenureDistributionChart from './TenureDistributionChart';
 import HRHiresChart from './HRHiresChart';
 import DriverRosterSection from './DriverRosterSection';
 import HRMovementSection from './HRMovementSection';
+import HRTenureSection from './HRTenureSection';
 import type { HRMonthData } from '../../types/hr';
 import type { DriverRecord } from '../../types/roster';
 
@@ -40,7 +41,7 @@ const CARD: React.CSSProperties = {
 };
 
 // ── Sidebar sections ──────────────────────────────────────────────────────────
-type SectionId = 'overview' | 'forecast' | 'performance' | 'hire-rates' | 'cost-spend' | 'sources' | 'workforce' | 'hr-movement';
+type SectionId = 'overview' | 'forecast' | 'performance' | 'hire-rates' | 'cost-spend' | 'sources' | 'workforce' | 'hr-movement' | 'hr-tenure';
 
 const SECTIONS: { id: SectionId; label: string; icon: string; desc: string }[] = [
   { id: 'overview',     label: 'Overview',        icon: '▣', desc: 'KPIs & monthly summary'      },
@@ -51,6 +52,7 @@ const SECTIONS: { id: SectionId; label: string; icon: string; desc: string }[] =
   { id: 'sources',      label: 'Source Analysis',  icon: '◐', desc: 'Hires & rate by channel'    },
   { id: 'workforce',    label: 'Workforce / HR',   icon: '◈', desc: 'Headcount, movement & tenure'},
   { id: 'hr-movement',  label: 'HR Movement',      icon: '▦', desc: 'Joined / left per HR rep'   },
+  { id: 'hr-tenure',    label: 'HR Tenure',        icon: '▤', desc: 'Weeks with us per HR rep'    },
 ];
 
 // ── Animated number ───────────────────────────────────────────────────────────
@@ -351,6 +353,13 @@ function SectionContent({ id, data, hrData, rosterData, showHRTabs }: { id: Sect
       return (
         <div style={{ animation: 'fadeSlideIn 0.4s ease both' }}>
           <HRMovementSection drivers={rosterData} />
+        </div>
+      );
+
+    case 'hr-tenure':
+      return (
+        <div style={{ animation: 'fadeSlideIn 0.4s ease both' }}>
+          <HRTenureSection drivers={rosterData} />
         </div>
       );
   }
