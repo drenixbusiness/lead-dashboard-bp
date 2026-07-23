@@ -1,161 +1,231 @@
 import type { DriverRecord } from '../types/roster';
+import type { HRMonthData, HRDataResult } from '../types/hr';
 
 export type { DriverRecord };
 
 export interface RosterResult {
   drivers: DriverRecord[];
+  hrData: HRMonthData[];
   error?: string;
 }
 
-const BP_ROSTER_ID = '1v3tMPvGFJ4NqIFqCF0INtNuJLYEzZkdQ0ZBqcxDno7M';
-const BP_HR_ID     = '1TpoZFQdXA7wb-Ljuyw53MplTJeKCPRZTxgOyHPH0pZM';
-const BP_HR_GIDS   = [1348361704, 1631028660, 1096656459, 693650426, 762556289, 844332491, 1446224036];
+const SHEET_ID = process.env.DRIVERS_SHEET_ID ?? '1aAKDHQRg2M9MPPCVfGSv8_i32k4bPLVF9TFkWCObrkU';
+const SHEET_GID = 0;
 
-function parseDate(raw: string): string | null {
-  if (!raw?.trim()) return null;
-  const parts = raw.trim().split('/');
-  if (parts.length === 3) {
-    const [m, d, y] = parts;
-    if (y && y.length === 4) return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function parseCSV(text: string): string[][] {
+  const rows: string[][] = [];
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue;
+    const cells: string[] = [];
+    let inQuote = false;
+    let cell = '';
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') inQuote = !inQuote;
+      else if (ch === ',' && !inQuote) { cells.push(cell.trim()); cell = ''; }
+      else cell += ch;
+    }
+    cells.push(cell.trim());
+    rows.push(cells);
   }
-  return raw.trim() || null;
+  return rows;
 }
 
-function parseCSVLine(line: string): string[] {
-  const cells: string[] = [];
-  let inQuote = false;
-  let cell = '';
-  for (const ch of line) {
-    if (ch === '"') { inQuote = !inQuote; }
-    else if (ch === ',' && !inQuote) { cells.push(cell.trim()); cell = ''; }
-    else { cell += ch; }
+function looksLikeHtml(text: string): boolean {
+  const t = text.trim().slice(0, 200).toLowerCase();
+  return t.startsWith('<!doctype') || t.startsWith('<html') || t.includes('sign in');
+}
+
+function monthFromLabel(raw: string): { index: number; label: string } | null {
+  const key = raw.trim().toLowerCase();
+  if (!key) return null;
+  const idx = MONTH_NAMES.findIndex(m => key.startsWith(m.toLowerCase()));
+  if (idx < 0) return null;
+  // Sheet is 2026 hire log
+  return { index: idx + 1, label: `${MONTH_SHORT[idx]} 2026` };
+}
+
+/**
+ * Parse dates that mix MDY and DMY. Prefer the section month when ambiguous.
+ * "still working" / empty → null (not terminated).
+ */
+function parseDate(raw: string, hintMonth?: number): string | null {
+  const s = raw.trim();
+  if (!s || /still\s*working/i.test(s) || /^n\/?a$/i.test(s) || s === '-') return null;
+
+  const m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/);
+  if (!m) return null;
+
+  let a = Number(m[1]);
+  let b = Number(m[2]);
+  let y = Number(m[3]);
+  if (y < 100) y += 2000;
+
+  let month: number;
+  let day: number;
+
+  if (a > 12 && b >= 1 && b <= 12) {
+    // 14/01/2026 → DMY
+    day = a; month = b;
+  } else if (b > 12 && a >= 1 && a <= 12) {
+    // 01/23/2026 → MDY
+    month = a; day = b;
+  } else if (hintMonth != null && a === hintMonth) {
+    // Ambiguous but first part matches section month → MDY
+    month = a; day = b;
+  } else if (hintMonth != null && b === hintMonth) {
+    // Ambiguous but second part matches section month → DMY
+    day = a; month = b;
+  } else {
+    // Default MDY (Google Sheets US-style)
+    month = a; day = b;
   }
-  cells.push(cell.trim());
-  return cells;
+
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-function isValidHRName(raw: string): boolean {
-  const v = raw.trim();
-  if (!v || v.length < 2) return false;
-  const low = v.toLowerCase();
-  if (/january|february|march|april|may|june|july|august|september|october|november|december/i.test(v)) return false;
-  if (/leads?|referral|fleet|driver[si]?|new|eski|paid|starpoint|translab|company|comp\b/i.test(low)) return false;
-  if (/\d/.test(v)) return false;
-  if (v.trim().split(/\s+/).length > 2) return false;
-  return true;
+function normalizeHR(raw: string): string | null {
+  const t = raw.trim();
+  if (!t || t.length < 2) return null;
+  if (/^hired\s*hr$/i.test(t)) return null;
+  return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
-function normName(raw: string): string {
-  return raw
-    .toLowerCase()
-    .replace(/\bcomp\b|\bcompany\b|\bfleet\b|\bteam\b/gi, '')
-    .replace(/[^a-z ]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+function isHeaderName(name: string): boolean {
+  const n = name.toLowerCase();
+  return n === 'driver name' || n === 'n' || n.startsWith('driver name');
 }
 
-// Simple edit distance (Levenshtein) for fuzzy name matching
-function editDist(a: string, b: string): number {
-  if (Math.abs(a.length - b.length) > 4) return 99;
-  const m = a.length, n = b.length;
-  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
-    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
-  );
-  for (let i = 1; i <= m; i++)
-    for (let j = 1; j <= n; j++)
-      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
-  return dp[m][n];
+function pushDriver(
+  drivers: DriverRecord[],
+  nameRaw: string,
+  hrRaw: string,
+  hiredRaw: string,
+  leftRaw: string,
+  hintMonth?: number,
+) {
+  const name = nameRaw.trim();
+  if (!name || isHeaderName(name) || /^\d+$/.test(name)) return;
+
+  const hiredDate = parseDate(hiredRaw, hintMonth);
+  if (!hiredDate) return;
+
+  const leftTrim = leftRaw.trim();
+  const stillWorking = !leftTrim || /still\s*working/i.test(leftTrim);
+  // Do not pass hire-month hint for leave dates — they can fall in any later month
+  const terminationDate = stillWorking ? null : parseDate(leftTrim);
+
+  drivers.push({
+    name,
+    hiredDate,
+    terminationDate,
+    hr: normalizeHR(hrRaw),
+    firstLoad: null,
+  });
 }
 
-// Look up HR by trying: exact → reversed tokens → fuzzy edit distance
-function lookupHR(name: string, hrMap: Map<string, string>): string | null {
-  const key = normName(name);
-  if (hrMap.has(key)) return hrMap.get(key)!;
+/** Side-by-side month blocks: left = cols B–E, right = cols H–K */
+function parseUnifiedSheet(rows: string[][]): DriverRecord[] {
+  const drivers: DriverRecord[] = [];
+  let leftMonth: { index: number; label: string } | null = null;
+  let rightMonth: { index: number; label: string } | null = null;
 
-  const reversed = key.split(' ').reverse().join(' ');
-  if (hrMap.has(reversed)) return hrMap.get(reversed)!;
+  for (const row of rows) {
+    const b = row[1] ?? '';
+    const c = row[2] ?? '';
+    const d = row[3] ?? '';
+    const e = row[4] ?? '';
+    const h = row[7] ?? '';
+    const i = row[8] ?? '';
+    const j = row[9] ?? '';
+    const k = row[10] ?? '';
 
-  // Fuzzy: find HR map key with lowest edit distance
-  const maxDist = key.length > 14 ? 3 : key.length > 9 ? 2 : key.length > 6 ? 1 : 0;
-  if (maxDist === 0) return null;
+    const leftMonthHit = monthFromLabel(b);
+    const rightMonthHit = monthFromLabel(h);
+    // March row is oddly "N,March,...,June" — month in col B with N in col A
+    if (leftMonthHit && !c && !d) leftMonth = leftMonthHit;
+    if (rightMonthHit && !i && !j) rightMonth = rightMonthHit;
 
-  let bestDist = maxDist + 1;
-  let bestHR: string | null = null;
-  for (const [k, v] of hrMap) {
-    const d = Math.min(editDist(key, k), editDist(reversed, k));
-    if (d < bestDist) { bestDist = d; bestHR = v; }
+    // Also: first header row ",January,,,,,,April,,,"
+    if (leftMonthHit && /january|february|march|april|may|june/i.test(b) && !row[0]) {
+      leftMonth = leftMonthHit;
+    }
+    if (rightMonthHit) rightMonth = rightMonthHit;
+
+    // Skip pure header rows
+    const bIsHeader = isHeaderName(b) || /^hired\s*hr$/i.test(c);
+    const hIsHeader = isHeaderName(h) || /^hired\s*hr$/i.test(i);
+
+    if (b && !bIsHeader && !leftMonthHit) {
+      pushDriver(drivers, b, c, d, e, leftMonth?.index);
+    }
+    if (h && !hIsHeader && !rightMonthHit) {
+      pushDriver(drivers, h, i, j, k, rightMonth?.index);
+    }
   }
-  return bestHR;
+
+  return drivers;
 }
 
-async function buildHRMap(): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
-  await Promise.all(BP_HR_GIDS.map(async (gid) => {
-    try {
-      const url = `https://docs.google.com/spreadsheets/d/${BP_HR_ID}/export?format=csv&gid=${gid}`;
-      const res = await fetch(url, { cache: 'no-store' });
-      if (!res.ok) return;
-      const lines = (await res.text()).split('\n');
-      for (const line of lines) {
-        const cells = parseCSVLine(line);
-        const driverName = cells[1] ?? '';
-        if (!driverName || driverName.length < 2) continue;
-        const dLow = driverName.toLowerCase();
-        if (dLow === 'name' || dLow.includes('mvr') || dLow.includes('process')) continue;
+export function buildHRDataFromRoster(drivers: DriverRecord[]): HRMonthData[] {
+  const byMonth = new Map<string, { hires: Record<string, number>; sort: string }>();
 
-        // HR name is in col C (index 2) for most tabs; col D (index 3) for March-style tabs
-        const colC = cells[2] ?? '';
-        const colD = cells[3] ?? '';
-        const hr = isValidHRName(colC) ? colC.trim() : (isValidHRName(colD) ? colD.trim() : null);
-        if (!hr) continue;
+  for (const d of drivers) {
+    if (!d.hiredDate || !d.hr) continue;
+    const [y, m] = d.hiredDate.split('-');
+    const mi = Number(m) - 1;
+    if (mi < 0 || mi > 11) continue;
+    const label = `${MONTH_SHORT[mi]} ${y}`;
+    const sort = `${y}-${m}`;
+    const cur = byMonth.get(label) ?? { hires: {}, sort };
+    cur.hires[d.hr] = (cur.hires[d.hr] ?? 0) + 1;
+    byMonth.set(label, cur);
+  }
 
-        const key = normName(driverName);
-        const rev = key.split(' ').reverse().join(' ');
-        if (key && !map.has(key)) map.set(key, hr);
-        if (rev && !map.has(rev)) map.set(rev, hr);
-      }
-    } catch { /* skip failed tab */ }
-  }));
-  return map;
+  return [...byMonth.entries()]
+    .sort((a, b) => a[1].sort.localeCompare(b[1].sort))
+    .map(([month, v]) => ({
+      month,
+      hires: v.hires,
+      total: Object.values(v.hires).reduce((s, n) => s + n, 0),
+    }));
 }
 
 export async function fetchBPRosterData(): Promise<RosterResult> {
   try {
-    const [rosterRes, hrMap] = await Promise.all([
-      fetch(`https://docs.google.com/spreadsheets/d/${BP_ROSTER_ID}/export?format=csv&gid=0`, { cache: 'no-store' }),
-      buildHRMap(),
-    ]);
-    if (!rosterRes.ok) throw new Error(`HTTP ${rosterRes.status}`);
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    const lines = (await rosterRes.text()).split('\n').map(l => l.trim()).filter(Boolean);
-    const drivers: DriverRecord[] = [];
-
-    for (const line of lines) {
-      const cells = parseCSVLine(line);
-      const colB = cells[1] ?? '';
-      const colC = cells[2] ?? '';
-      const colD = cells[3] ?? '';
-
-      if (!colB || !colC) continue;
-      const bLow = colB.toLowerCase();
-      if (bLow.includes('drivers name') || bLow === 'active' || bLow.includes('temporary') || bLow.includes('starting date')) continue;
-
-      const name = colB.trim();
-      if (name.length < 2) continue;
-
-      const hr = lookupHR(name, hrMap);
-
-      drivers.push({
-        name,
-        hiredDate:       parseDate(colC),
-        terminationDate: parseDate(colD) || null,
-        hr,
-        firstLoad: null,
-      });
+    const text = await res.text();
+    if (looksLikeHtml(text)) {
+      throw new Error('Sheet is private — share as “Anyone with the link can view”');
     }
 
-    return { drivers };
+    const drivers = parseUnifiedSheet(parseCSV(text));
+    if (drivers.length === 0) {
+      throw new Error('No driver rows found in unified sheet');
+    }
+
+    return {
+      drivers,
+      hrData: buildHRDataFromRoster(drivers),
+    };
   } catch (err) {
-    return { drivers: [], error: err instanceof Error ? err.message : String(err) };
+    return {
+      drivers: [],
+      hrData: [],
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
+}
+
+/** HR monthly counts derived from the same unified driver sheet. */
+export async function fetchHRDataFromRoster(): Promise<HRDataResult> {
+  const { hrData, error } = await fetchBPRosterData();
+  return { data: hrData, error };
 }

@@ -65,7 +65,7 @@ function DriverTable({ rows, type }: { rows: DriverRecord[]; type: 'hired' | 'te
   if (rows.length === 0) {
     return (
       <div style={{ padding: '24px 0', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
-        No {type === 'hired' ? 'active' : 'terminated'} drivers
+            No {type === 'hired' ? 'still working' : 'terminated'} drivers
       </div>
     );
   }
@@ -202,8 +202,8 @@ export default function DriverRosterSection({ drivers, showHRTabs = true }: Prop
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#166534' }}>✅ Hired Drivers</div>
-              <div style={{ fontSize: 11, color: '#15803d', marginTop: 2 }}>Active — still with the company</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#166534' }}>✅ Still Working</div>
+              <div style={{ fontSize: 11, color: '#15803d', marginTop: 2 }}>Active — hired, not terminated</div>
             </div>
             <div style={{
               fontSize: 20, fontWeight: 800, color: '#15803d',
