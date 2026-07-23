@@ -25,14 +25,40 @@ const BUCKET_DEFS = [
   { label: '25+ wks',   min: 25, max: null as number | null, color: 'rgba(49,46,129,0.95)' },
 ];
 
+function ceilToStep(n: number, step = 5): number {
+  if (n <= 0) return step;
+  return Math.ceil(n / step) * step;
+}
+
+function bucketCounts(drivers: DriverRecord[]): number[] {
+  const weeks = drivers
+    .map(d => calcDriverTenureWeeks(d))
+    .filter((w): w is number => w !== null);
+  return BUCKET_DEFS.map(b =>
+    weeks.filter(w => (b.max == null ? w >= b.min : w >= b.min && w <= b.max)).length,
+  );
+}
+
+/** Shared Y max across HR tenure charts (ticks of 5). */
+export function getSharedTenureScale(driverGroups: DriverRecord[][]): number {
+  let max = 0;
+  for (const group of driverGroups) {
+    max = Math.max(max, ...bucketCounts(group));
+  }
+  return ceilToStep(max, 5);
+}
+
 export default function TenureDistributionChart({
   drivers,
   title = 'Tenure Distribution',
   subtitle = 'weeks since hire · active → today · left → termination date',
+  yMax,
 }: {
   drivers: DriverRecord[];
   title?: string;
   subtitle?: string;
+  /** Shared Y max so sparse HRs don’t inflate bars */
+  yMax?: number;
 }) {
   const weeks = drivers
     .map(d => calcDriverTenureWeeks(d))
@@ -51,6 +77,9 @@ export default function TenureDistributionChart({
       </div>
     );
   }
+
+  const localMax = Math.max(...buckets.map(b => b.count), 1);
+  const axisMax = yMax ?? ceilToStep(localMax, 5);
 
   const chartData = {
     labels: buckets.map(b => b.label),
@@ -97,10 +126,11 @@ export default function TenureDistributionChart({
         border: { display: false },
       },
       y: {
+        min: 0,
+        max: axisMax,
         grid: { color: 'rgba(0,0,0,0.04)' },
         ticks: { color: '#94a3b8', font: { size: 11 }, stepSize: 5 },
         border: { display: false },
-        beginAtZero: true,
       },
     },
   };

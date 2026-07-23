@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { DriverRecord } from '../../types/roster';
 import { calcDriverTenureWeeks } from '../../utils/tenure';
-import TenureDistributionChart from './TenureDistributionChart';
+import TenureDistributionChart, { getSharedTenureScale } from './TenureDistributionChart';
 
 const HR_COLORS: Record<string, string> = {
   FRED:    '#14b8a6',
@@ -117,6 +117,13 @@ export default function HRTenureSection({ drivers }: { drivers: DriverRecord[] }
     return drivers.filter(d => (d.hr ?? '').toLowerCase() === activeHR.toLowerCase());
   }, [drivers, activeHR, showAll]);
 
+  const sharedYMax = useMemo(() => {
+    const groups = hrNames.map(hr =>
+      drivers.filter(d => (d.hr ?? '').toLowerCase() === hr.toLowerCase()),
+    );
+    return groups.length ? getSharedTenureScale(groups) : 10;
+  }, [drivers, hrNames]);
+
   const stats = tenureStats(filtered);
   const accent = showAll ? '#4338ca' : hrColor(activeHR);
 
@@ -208,9 +215,12 @@ export default function HRTenureSection({ drivers }: { drivers: DriverRecord[] }
             />
           </div>
 
-          {/* Every HR chart on one page */}
+          {/* Every HR chart — shared Y scale so bars are comparable */}
           <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
             Tenure by HR — all reps
+            <span style={{ fontWeight: 500, color: '#94a3b8', marginLeft: 8 }}>
+              same Y scale (steps of 5)
+            </span>
           </div>
           <div style={{
             display: 'grid',
@@ -252,6 +262,7 @@ export default function HRTenureSection({ drivers }: { drivers: DriverRecord[] }
                       drivers={subset}
                       title={`Tenure — ${hr}`}
                       subtitle={`${subset.length} drivers hired by ${hr}`}
+                      yMax={sharedYMax}
                     />
                   </div>
                 </div>
@@ -266,6 +277,7 @@ export default function HRTenureSection({ drivers }: { drivers: DriverRecord[] }
             drivers={filtered}
             title={`Tenure Distribution — ${activeHR}`}
             subtitle={`drivers hired by ${activeHR} · still working → today · left → leave date`}
+            yMax={sharedYMax}
           />
         </div>
       )}

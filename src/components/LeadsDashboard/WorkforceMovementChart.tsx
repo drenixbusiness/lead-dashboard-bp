@@ -33,6 +33,14 @@ const LEGEND_ITEMS = [
   { color: '#3b82f6', label: 'Active Headcount', shape: 'line' as const },
 ];
 
+export type MovementRow = {
+  month: string;
+  sort: string;
+  onboarded: number;
+  departed: number;
+  headcount: number;
+};
+
 function monthKey(iso: string): { label: string; sort: string } | null {
   const m = iso.match(/^(\d{4})-(\d{2})/);
   if (!m) return null;
@@ -41,7 +49,7 @@ function monthKey(iso: string): { label: string; sort: string } | null {
   return { label: `${MONTH_NAMES[mi]} ${m[1]}`, sort: `${m[1]}-${m[2]}` };
 }
 
-function buildMovement(drivers: DriverRecord[]) {
+export function buildMovement(drivers: DriverRecord[]): MovementRow[] {
   const map = new Map<string, { onboarded: number; departed: number; sort: string; label: string }>();
 
   for (const d of drivers) {
@@ -69,6 +77,7 @@ function buildMovement(drivers: DriverRecord[]) {
     headcount += v.onboarded - v.departed;
     return {
       month: v.label,
+      sort: v.sort,
       onboarded: v.onboarded,
       departed: v.departed,
       headcount: Math.max(0, headcount),
@@ -76,16 +85,82 @@ function buildMovement(drivers: DriverRecord[]) {
   });
 }
 
+/** Align series to a shared month axis (fill missing months with zeros / carried headcount). */
+export function alignMovementToMonths(drivers: DriverRecord[], monthSortKeys: string[]): MovementRow[] {
+  const raw = buildMovement(drivers);
+  const bySort = new Map(raw.map(r => [r.sort, r]));
+  let headcount = 0;
+
+  return monthSortKeys.map(sort => {
+    const hit = bySort.get(sort);
+    const onboarded = hit?.onboarded ?? 0;
+    const departed = hit?.departed ?? 0;
+    headcount = Math.max(0, headcount + onboarded - departed);
+    const [y, m] = sort.split('-');
+    const mi = Number(m) - 1;
+    return {
+      month: hit?.month ?? `${MONTH_NAMES[mi] ?? m} ${y}`,
+      sort,
+      onboarded,
+      departed,
+      headcount,
+    };
+  });
+}
+
+function ceilToStep(n: number, step = 5): number {
+  if (n <= 0) return step;
+  return Math.ceil(n / step) * step;
+}
+
+/** Shared Y scale + month axis across several HR driver lists (ticks of 5). */
+export function getSharedMovementScale(driverGroups: DriverRecord[][]): {
+  monthSortKeys: string[];
+  yMax: number;
+  yMin: number;
+} {
+  const monthSet = new Set<string>();
+  for (const group of driverGroups) {
+    for (const row of buildMovement(group)) monthSet.add(row.sort);
+  }
+  const monthSortKeys = [...monthSet].sort();
+
+  let maxPos = 0;
+  let maxNeg = 0;
+  for (const group of driverGroups) {
+    for (const row of alignMovementToMonths(group, monthSortKeys)) {
+      maxPos = Math.max(maxPos, row.onboarded, row.headcount);
+      maxNeg = Math.max(maxNeg, row.departed);
+    }
+  }
+
+  return {
+    monthSortKeys,
+    yMax: ceilToStep(maxPos, 5),
+    yMin: -ceilToStep(maxNeg, 5),
+  };
+}
+
 export default function WorkforceMovementChart({
   drivers,
   title = 'Workforce Movement',
   subtitle = 'onboarding vs departures vs net headcount',
+  monthSortKeys,
+  yMax,
+  yMin,
 }: {
   drivers: DriverRecord[];
   title?: string;
   subtitle?: string;
+  /** Shared month axis so every HR chart looks the same width/shape */
+  monthSortKeys?: string[];
+  /** Shared Y max (steps of 5) so sparse HRs don't inflate bars */
+  yMax?: number;
+  yMin?: number;
 }) {
-  const data = buildMovement(drivers);
+  const data = monthSortKeys?.length
+    ? alignMovementToMonths(drivers, monthSortKeys)
+    : buildMovement(drivers);
 
   if (data.length === 0) {
     return (
@@ -99,6 +174,11 @@ export default function WorkforceMovementChart({
   const totalJoined = data.reduce((s, d) => s + d.onboarded, 0);
   const totalLeft = data.reduce((s, d) => s + d.departed, 0);
   const net = totalJoined - totalLeft;
+
+  const localMax = Math.max(...data.map(d => Math.max(d.onboarded, d.headcount)), 1);
+  const localMin = -Math.max(...data.map(d => d.departed), 1);
+  const axisMax = yMax ?? ceilToStep(localMax, 5);
+  const axisMin = yMin ?? -ceilToStep(Math.abs(localMin), 5);
 
   const chartData = {
     labels,
@@ -192,10 +272,13 @@ export default function WorkforceMovementChart({
         border: { display: false },
       },
       y: {
+        min: axisMin,
+        max: axisMax,
         grid: { color: 'rgba(0,0,0,0.04)' },
         ticks: {
           color: '#94a3b8',
           font: { size: 11 },
+          stepSize: 5,
           callback: (v: string | number) => (typeof v === 'number' && v < 0 ? '' : String(v)),
         },
         border: { display: false },

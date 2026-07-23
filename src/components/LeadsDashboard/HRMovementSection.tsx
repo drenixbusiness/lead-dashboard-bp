@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { DriverRecord } from '../../types/roster';
-import WorkforceMovementChart from './WorkforceMovementChart';
+import WorkforceMovementChart, { getSharedMovementScale } from './WorkforceMovementChart';
 
 const HR_COLORS: Record<string, string> = {
   FRED:    '#14b8a6',
@@ -58,6 +58,15 @@ export default function HRMovementSection({ drivers }: { drivers: DriverRecord[]
     if (showAll) return drivers;
     return drivers.filter(d => (d.hr ?? '').toLowerCase() === activeHR.toLowerCase());
   }, [drivers, activeHR, showAll]);
+
+  // Same months + Y scale (steps of 5) for every HR chart
+  const sharedScale = useMemo(() => {
+    const groups = hrNames.map(hr =>
+      drivers.filter(d => (d.hr ?? '').toLowerCase() === hr.toLowerCase()),
+    );
+    if (groups.length === 0) return { monthSortKeys: [] as string[], yMax: 10, yMin: -5 };
+    return getSharedMovementScale(groups);
+  }, [drivers, hrNames]);
 
   const stats = statsFor(filtered);
   const accent = showAll ? '#3b82f6' : hrColor(activeHR);
@@ -157,7 +166,7 @@ export default function HRMovementSection({ drivers }: { drivers: DriverRecord[]
 
       {showAll ? (
         <>
-          {/* Company overview */}
+          {/* Company overview — own scale (larger totals) */}
           <div style={{ ...CARD, height: 400 }}>
             <WorkforceMovementChart
               drivers={drivers}
@@ -166,9 +175,12 @@ export default function HRMovementSection({ drivers }: { drivers: DriverRecord[]
             />
           </div>
 
-          {/* Every HR movement chart on one page */}
+          {/* Every HR movement chart — shared scale so bars are comparable */}
           <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
             Movement by HR — all reps
+            <span style={{ fontWeight: 500, color: '#94a3b8', marginLeft: 8 }}>
+              same Y scale (steps of 5)
+            </span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             {hrNames.map(hr => {
@@ -206,6 +218,9 @@ export default function HRMovementSection({ drivers }: { drivers: DriverRecord[]
                       drivers={subset}
                       title={`Movement — ${hr}`}
                       subtitle={`drivers hired by ${hr}`}
+                      monthSortKeys={sharedScale.monthSortKeys}
+                      yMax={sharedScale.yMax}
+                      yMin={sharedScale.yMin}
                     />
                   </div>
                 </div>
@@ -219,6 +234,9 @@ export default function HRMovementSection({ drivers }: { drivers: DriverRecord[]
             drivers={filtered}
             title={`Workforce Movement — ${activeHR}`}
             subtitle={`drivers hired by ${activeHR} · joined vs left vs remaining headcount`}
+            monthSortKeys={sharedScale.monthSortKeys}
+            yMax={sharedScale.yMax}
+            yMin={sharedScale.yMin}
           />
         </div>
       )}
