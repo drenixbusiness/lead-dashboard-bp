@@ -1,6 +1,6 @@
 import { fetchLeadsData } from '../utils/fetchLeadsData';
 import { fetchHRData } from '../utils/fetchHRData';
-import { fetchDriversData } from '../utils/fetchDriversData';
+import { fetchBPRosterData } from '../utils/fetchRosterData';
 import DashboardContent from '../components/LeadsDashboard/DashboardContent';
 
 export const metadata = {
@@ -8,10 +8,10 @@ export const metadata = {
 };
 
 export default async function Home() {
-  const [{ data, error }, { data: hrData }, driversData] = await Promise.all([
+  const [{ data, error }, { data: hrData }, { drivers: rosterData }] = await Promise.all([
     fetchLeadsData(),
     fetchHRData(),
-    fetchDriversData(),
+    fetchBPRosterData(),
   ]);
   return (
     <DashboardContent
@@ -19,7 +19,7 @@ export default async function Home() {
       error={error}
       company="BP"
       hrData={hrData}
-      driversData={driversData}
+      rosterData={rosterData}
     />
   );
 }
